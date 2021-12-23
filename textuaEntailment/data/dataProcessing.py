@@ -44,26 +44,16 @@ class LangModel:
 		df = df[['gold_label', 'sentence1', 'sentence2']]
 		# df_dev = df_dev[['gold_label', 'sentence1', 'sentence2']]
 		# df_test = df_test[['gold_label', 'sentence1', 'sentence2']]
-		
+		df = df[df['gold_label'] != '-']
 		# Take small dataset
 		if self.stage== 'train':
-			df = df[:10000]
+			df = df[:1000]
 		else:
-			df = df[:1000]
-			df = df[:1000]
-		
-		df = df[df['gold_label'] != '-']
-		# df_dev = df_dev[df_dev['gold_label'] != '-']
-		# df_test = df_test[df_test['gold_label'] != '-']
-		
-		# Trim each sentence upto maximum length
-		#train_s1= df_train['sentence1'].apply(sentence_cleaning).to_numpy()
-		s1 = df['sentence1'].to_list()
-		s2 = df['sentence2'].to_list()
-		# dev_s1 = df_dev['sentence1'].to_list()
-		# dev_s2 = df_dev['sentence2'].to_list()
-		# test_s1 =  df_test['sentence1'].to_list()
-		# test_s2 = df_test['sentence2'].to_list()
+			df = df[:100]
+			df = df[:100]
+
+		s1 = [i for i in df['sentence1'].to_list() if type(i) ==str]
+		s2 = [i for i in df['sentence2'].to_list() if type(i) == str]
 		
 		
 		lab = df['gold_label'].apply(self.label_encod).to_numpy()
@@ -82,7 +72,7 @@ class LangModel:
 		start = time.time()
 		print(f'Start processing data {self.stage}',flush = True)
 		sentence_pair = []
-		s1, s2, lab = self.data
+		s1, s2, self.lab = self.data
 		for i in range(len(s1)):
 			sentence_pair.append((self.sentence_cleaning(s1[i]),self.sentence_cleaning(s2[i])))
 		self.dataProcessed = np.array(sentence_pair)
@@ -100,25 +90,23 @@ class LangModel:
 	
 	def addSentence(self,tokens):
 		final = []
-		try:
-			for k in range(self.maxTokens - len(tokens)):
-				tokens.append(self.dumbTok)
-			for i in range(self.maxTokens):
-				word = tokens[i]
-				if word.text not in self.str2idx.keys():
-						self.str2idx[word.text] = self.idx
-						self.idx2str[self.idx] = word.text
-						self.idx2emb[self.idx] = word.vector
-						self.idx +=1
-				final.append(self.str2idx[word.text])
-			return final
-		except:
-			a = 2
+		for k in range(self.maxTokens - len(tokens)):
+			tokens.append(self.dumbTok)
+		for i in range(self.maxTokens):
+			word = tokens[i]
+			if word.text not in self.str2idx.keys():
+					self.str2idx[word.text] = self.idx
+					self.idx2str[self.idx] = word.text
+					self.idx2emb[self.idx] = word.vector
+					self.idx +=1
+			final.append(self.str2idx[word.text])
+		return final
+
 
 	def save_processed(self,save_path):
 		print('saving files...', flush = True)
 		outfile = os.path.join(save_path,f'{self.stage}_idx')
-		np.save(outfile, self.dataProcessed)
+		np.savez(outfile, data = self.dataProcessed,label = self.lab)
 		outfile = os.path.join(save_path, f'{self.stage}_idx2emb.pkl')
 		with open(outfile, 'wb') as handle:
 			pickle.dump(self.idx2emb, handle, protocol=pickle.HIGHEST_PROTOCOL)

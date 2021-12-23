@@ -1,6 +1,7 @@
 #from torchtext import data
 from data.dataProcessing import LangModel
 from data.DataClass import MyDataModule
+from torch.utils.data import Dataset,DataLoader
 # from model import lstmModel
 # from trainer import NLItrainer
 
@@ -26,10 +27,10 @@ def process():
 	dataProcessing.dataProcess()
 	dataProcessing.save_processed(out_path)
 
-
-dm = MyDataModule(64,out_path)
+#process()
+dm = MyDataModule(batch_size = 64,path = out_path)
 dm.setup()
-
+a = 10
 # model = lstmModel()
 #
 # trainer = Trainer()
