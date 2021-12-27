@@ -11,25 +11,28 @@ out_path =  "C:\\Users\\gcram\\Documents\\Datasets\\NLP\\snli_processed\\"
 
 
 def process():
+	# dataProcessing = LangModel(stage = 'test')
+	# dataProcessing.get_data(path_file)
+	# dataProcessing.dataProcess()
+	# dataProcessing.save_processed(out_path)
+	#
+	# dataProcessing = LangModel(stage='dev')
+	# dataProcessing.get_data(path_file)
+	# dataProcessing.dataProcess()
+	# dataProcessing.save_processed(out_path)
+	
 	dataProcessing = LangModel(stage = 'train')
 	dataProcessing.get_data(path_file)
 	dataProcessing.dataProcess()
 	dataProcessing.save_processed(out_path)
 	
-	dataProcessing = LangModel(stage = 'dev')
-	dataProcessing.get_data(path_file)
-	dataProcessing.dataProcess()
-	dataProcessing.save_processed(out_path)
-	
-	
-	dataProcessing = LangModel(stage = 'test')
-	dataProcessing.get_data(path_file)
-	dataProcessing.dataProcess()
-	dataProcessing.save_processed(out_path)
 
-#process()
-dm = MyDataModule(batch_size = 64,path = out_path)
-dm.setup()
+	
+
+
+process()
+# dm = MyDataModule(batch_size = 64,path = out_path)
+# dm.setup()
 a = 10
 # model = lstmModel()
 #

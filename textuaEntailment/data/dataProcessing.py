@@ -2,6 +2,7 @@
 import pandas as pd
 import numpy as np
 import os, pickle , time
+from tqdm import tqdm
 # from torchtext.legacy import data
 
 
@@ -42,21 +43,22 @@ class LangModel:
 		
 		# Get neccesary columns
 		df = df[['gold_label', 'sentence1', 'sentence2']]
+		df.dropna( inplace=True)
 		# df_dev = df_dev[['gold_label', 'sentence1', 'sentence2']]
 		# df_test = df_test[['gold_label', 'sentence1', 'sentence2']]
 		df = df[df['gold_label'] != '-']
 		# Take small dataset
-		if self.stage== 'train':
-			df = df[:1000]
-		else:
-			df = df[:100]
-			df = df[:100]
+		# if self.stage== 'train':
+		# 	df = df[:1000]
+		# else:
+		# 	df = df[:100]
+		# 	df = df[:100]
 
 		s1 = [i for i in df['sentence1'].to_list() if type(i) ==str]
 		s2 = [i for i in df['sentence2'].to_list() if type(i) == str]
-		
-		
 		lab = df['gold_label'].apply(self.label_encod).to_numpy()
+		assert len(s1) == len(s2)
+		
 		# lab_dev = df_dev['gold_label'].apply(self.label_encod).to_numpy()
 		# lab_test = df_test['gold_label'].apply(self.label_encod).to_numpy()
 		#
@@ -73,7 +75,9 @@ class LangModel:
 		print(f'Start processing data {self.stage}',flush = True)
 		sentence_pair = []
 		s1, s2, self.lab = self.data
-		for i in range(len(s1)):
+		assert len(s1) ==len(s2)
+		
+		for i in tqdm(range(len(s1))):
 			sentence_pair.append((self.sentence_cleaning(s1[i]),self.sentence_cleaning(s2[i])))
 		self.dataProcessed = np.array(sentence_pair)
 
