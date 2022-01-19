@@ -5,9 +5,9 @@ import os, pickle , time
 from tqdm import tqdm
 # from torchtext.legacy import data
 
-
-import spacy
-from spacy.vocab import Vocab
+#
+# import spacy
+# from spacy.vocab import Vocab
 
 
 SOS_token = 0

@@ -4,16 +4,15 @@ import os,pickle
 import numpy as np
 
 class myDataset(Dataset):
-	def __init__(self ,data):
-		self.myEmb = myEmb()
-		
-		self.sentences, self.label = self.dataProcess(data)
-
+	"""
+	Class that recives the already processed data.
+	"""
+	def __init__(self, s1,s2,lab):
+		self.sentence1,self.sentence2,self.labels =s1,s2,lab
 	def __len__(self):
-		return len(self.sentence)
-	
+		return len(self.labels)
 	def __getitem__(self, index):
-		return self.sentence[index], self.labels[index]
+		return self.sentence1[index],self.sentence2[index], self.labels[index]
 
 
 class MyDataModule(LightningDataModule):
@@ -21,6 +20,10 @@ class MyDataModule(LightningDataModule):
 		super().__init__()
 		self.batch_size = batch_size
 		self.path_file = path
+		self.dataset = {}
+		self.dataset['train'] = None
+		self.dataset['dev'] = None
+		self.dataset['test'] = None
 	
 	def get_inp_emb(self,idx,translate):
 		s1,s2 = idx[:,0,:],idx[:,1,:]
@@ -29,22 +32,21 @@ class MyDataModule(LightningDataModule):
 		return (sentence1,sentence2)
 
 
-	def setup(self):
-		self.data = {}
-		for stage in ['train','dev','test']:
-			outfile = os.path.join(self.path_file,f'{stage}_idx.npz')
-			with np.load(outfile) as tmp:
-				data = tmp['data']
-				label = tmp['label']
-			outfile = os.path.join(self.path_file, f'{stage}_idx2emb.pkl')
-			with open(outfile, 'rb') as handle:
-				idx2emb = pickle.load(handle)
-			self.data[stage] = self.get_inp_emb(data,idx2emb),label
+	def _setup(self,stage = 'train'):
+		outfile = os.path.join(self.path_file,f'{stage}_idx.npz')
+		with np.load(outfile) as tmp:
+			data = tmp['data']
+			label = tmp['label']
+		outfile = os.path.join(self.path_file, f'{stage}_idx2emb.pkl')
+		with open(outfile, 'rb') as handle:
+			idx2emb = pickle.load(handle)
+		sentence1, sentence2 = self.get_inp_emb(data,idx2emb)
+		self.dataset[stage] = myDataset(sentence1, sentence2,label)
 
 
 	def train_dataloader(self):
-		return DataLoader(self.data['train'], batch_size=self.batch_size)
+		return DataLoader(self.dataset['train'], batch_size=self.batch_size)
 	def val_dataloader(self):
-		return DataLoader(self.data['dev'], batch_size=self.batch_size)
+		return DataLoader(self.dataset['dev'], batch_size=self.batch_size)
 	def test_dataloader(self):
-		return DataLoader(self.dat['test'], batch_size=self.batch_size)
+		return DataLoader(self.dataset['test'], batch_size=self.batch_size)

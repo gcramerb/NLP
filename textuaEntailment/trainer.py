@@ -51,100 +51,43 @@ class NLItrainer(LightningModule):
 	
 
 	def _shared_eval_step(self, batch, stage='val'):
-		
-		sent1, sent2 = batch[0], batch[1]
-		dataSource, labSource = source['data'], source['label'].long()
-		dataTarget, labTarget = target['data'], target['label'].long()
-		
-		latentS, predS = self.clf(dataSource)
-		# latentT,rec = self.AE.forward(dataTarget)
-		latentT = self.AE.forward(dataTarget)
-		predT = self.clf.forward_from_latent(latentT)
-		
-		if stage == 'train':
-			discrepancy_loss = self.discLoss(latentT, latentS)
-			m_loss_clf = self.clfLoss(predS, labSource)
-			p_loss_clf = self.clDist(latentS, labSource)
-			# m_loss_AE = self.recLoss(dataTarget, rec)
-			
-			# clf_loss = m_loss_clf + self.hparams.alphaS * p_loss_clf + self.hparams.betaS * discrepancy_loss
-			clf_loss = m_loss_clf + self.hparams.alphaS * p_loss_clf
-			
-			# AE_loss = m_loss_AE + self.hparams.alphaT * discrepancy_loss
-			AE_loss = discrepancy_loss
-			
-			metrics = {f'{stage}_m_loss_clf': m_loss_clf.detach(),
-			           # f'{stage}_m_loss_AE': m_loss_AE.detach(),
-			           # f'{stage}loss_disc': discrepancy_loss.detach(),
-			           f'{stage}loss_clf': clf_loss.detach(),
-			           f'{stage}loss_AE': AE_loss.detach()}
-		
-		elif stage == 'val':
-			# accSource = accuracy_score(labSource.detach().cpu(), np.argmax(predS.detach().cpu(), axis=1))
-			# accTarget = accuracy_score(labTarget.detach().cpu(), np.argmax(predT.detach().cpu(), axis=1))
-			discrepancy_loss = self.discLoss(latentT, latentS)
-			m_loss_clf = self.clfLoss(predS, labSource)
-			p_loss_clf = self.clDist(latentS, labSource)
-			# m_loss_AE = self.recLoss(dataTarget, rec)
-			
-			# clf_loss = m_loss_clf + self.hparams.alphaS * p_loss_clf + self.hparams.betaS * discrepancy_loss
-			clf_loss = m_loss_clf + self.hparams.alphaS * p_loss_clf
-			
-			# AE_loss = m_loss_AE + self.hparams.alphaT * discrepancy_loss
-			AE_loss = discrepancy_loss
-			metrics = {f'{stage}_m_loss_clf': m_loss_clf.detach(),
-			           # f'{stage}_m_loss_AE': m_loss_AE.detach(),
-			           # f'{stage}loss_disc': discrepancy_loss.detach(),
-			           f'{stage}loss_clf': clf_loss.detach(),
-			           f'{stage}loss_AE': AE_loss.detach()}
-		# f'{stage}_acc_source': accSource,
-		# f'{stage}_acc_target': accTarget,
+		sent1, sent2,label = batch[0], batch[1],batch[2].long()
+		pred = self.model((sent1,sent2))
+		if stage == 'val':
+			loss = self.loss(pred, label)
+			acc = accuracy_score(label.cpu().numpy(), np.argmax(pred.cpu().numpy(), axis=1))
+			metrics = {'val_acc': acc,
+			           'val_loss': loss.detach()}
+
 		elif stage == 'test':
-			accSource = accuracy_score(labSource.cpu().numpy(), np.argmax(predS.cpu().numpy(), axis=1))
-			accTarget = accuracy_score(labTarget.cpu().numpy(), np.argmax(predT.cpu().numpy(), axis=1))
-			
-			metrics = {'test_acc_source': accSource,
-			           'all_acc_target': accTarget}
+			acc = accuracy_score(label.cpu().numpy(), np.argmax(pred.cpu().numpy(), axis=1))
+			metrics = {'test_acc': acc}
 		return metrics
 	
 	def training_step(self, batch, batch_idx):
-		source, target = batch[0], batch[1]
-		dataSource, labSource = source['data'], source['label'].long()
-		dataTarget = target['data']
-		
-		latentS, predSource = self.clf(dataSource)  # call forward method
-		latentT = self.AE.forward(dataTarget)
-		
-		y0 = torch.zeros(labSource.shape[0], 1)
-		y1 = torch.ones(dataTarget.shape[0], 1)
-		x = torch.cat([latentS, latentT])
-		y = torch.cat([y0, y1])
-		pred = self.domainClf(x)
-		ganLoss = self.GanLoss(pred, y.to(self.device))
-
-		
-		tqdm_dict = {f"{self.modelName[optimizer_idx]}_loss": loss}
-		metrics = self._shared_eval_step(batch, stage='train')
-		output = OrderedDict({"loss": loss, "progress_bar": tqdm_dict, "log": metrics})
+		sent1, sent2, label = batch[0], batch[1], batch[2].long()
+		pred = self.model((sent1,sent2))
+		loss = self.loss(pred,label)
+		tqdm_dict = {f"train_loss": loss}
+		output = OrderedDict({"loss": loss, "progress_bar": tqdm_dict})
 		return output
 	
-	def training_epoch_end(self, output):
-		metrics = {}
-		opt0 = [i['log'] for i in output[0]]
-		opt1 = [i['log'] for i in output[1]]
-		
-		keys_ = opt0[0].keys()
-		for k in keys_:
-			metrics[k] = torch.mean(torch.stack([i[k] for i in opt0] + [i[k] for i in opt1]))
-		for k, v in metrics.items():
-			self.log(k, v, on_step=False, on_epoch=True, prog_bar=True, logger=True)
+	# def training_epoch_end(self, output):
+	# 	metrics = {}
+	# 	opt0 = [i['log'] for i in output[0]]
+	# 	opt1 = [i['log'] for i in output[1]]
+	#
+	# 	keys_ = opt0[0].keys()
+	# 	for k in keys_:
+	# 		metrics[k] = torch.mean(torch.stack([i[k] for i in opt0] + [i[k] for i in opt1]))
+	# 	for k, v in metrics.items():
+	# 		self.log(k, v, on_step=False, on_epoch=True, prog_bar=True, logger=True)
 	
 
 	
 	def validation_step(self, batch, batch_idx):
 		# with torch.no_grad():
 		metrics = self._shared_eval_step(batch, stage='val')
-		
 		return metrics
 	
 	def validation_epoch_end(self, out):
@@ -152,7 +95,10 @@ class NLItrainer(LightningModule):
 		metrics = {}
 		for k in keys_:
 			val = [i[k] for i in out]
-			metrics[k] = torch.mean(torch.stack(val))
+			if 'loss' in k:
+				metrics[k] = torch.mean(torch.stack(val))
+			else:
+				metrics[k] = np.mean(val)
 		for k, v in metrics.items():
 			self.log(k, v, on_step=False, on_epoch=True, prog_bar=True, logger=True)
 	
@@ -162,10 +108,8 @@ class NLItrainer(LightningModule):
 			self.log(k, v, on_step=False, on_epoch=True, prog_bar=True, logger=True)
 		return metrics
 
-
 	def configure_optimizers(self):
-		opt = torch.optim.Adam(self.model.parameters(), lr=self.hparams.lr_source)
-
+		opt = torch.optim.Adam(self.model.parameters(), lr=self.hparams.lr)
 		return [opt]
 
 
