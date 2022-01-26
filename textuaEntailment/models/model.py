@@ -7,8 +7,9 @@ class lstmModel(nn.Module):
 	             n_classes = 3,
 	             stacked_layers = 2,
 	             hidden_size = 64,
-	             embedding_dim = 96,
-	             seq_len = 7):
+	             embedding_dim = 300,
+	             seq_len1 = 17,
+	             seq_len2 = 8):
 		super(lstmModel, self).__init__()
 		
 		self.hidden_size = hidden_size
@@ -16,7 +17,8 @@ class lstmModel(nn.Module):
 		self.n_classes = n_classes
 		self.stacked_layers = stacked_layers
 		self.embedding_dim = embedding_dim
-		self.seq_len = seq_len
+		self.seq_len1 = seq_len1
+		self.seq_len2 = seq_len2
 
 		#
 		# self.vocab_size = vocab_size
@@ -50,7 +52,7 @@ class lstmModel(nn.Module):
 
 		self.FC = nn.Sequential(
 			nn.Flatten(),
-			nn.Linear(4 * self.seq_len * self.hidden_size, 256),
+			nn.Linear(2 * (self.seq_len1 +self.seq_len2)  * self.hidden_size, 256),
 			nn.ReLU(),
 			nn.Linear(256, 128),
 			nn.ReLU(),

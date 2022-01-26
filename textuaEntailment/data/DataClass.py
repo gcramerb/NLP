@@ -25,22 +25,22 @@ class MyDataModule(LightningDataModule):
 		self.dataset['dev'] = None
 		self.dataset['test'] = None
 	
-	def get_inp_emb(self,idx,translate):
-		s1,s2 = idx[:,0,:],idx[:,1,:]
-		sentence1 = np.array([np.array(list(map(lambda x: translate[x],s))) for s in s1])
-		sentence2 = np.array([np.array(list(map(lambda x: translate[x], s))) for s in s2])
-		return (sentence1,sentence2)
+	def get_inp_emb(self,sentIdx,translate):
+		dat = [list(map(lambda x: translate[x], sentIdx[:, i])) for i in range(sentIdx.shape[-1])]
+		return np.stack(dat, axis=1)
 
 
 	def _setup(self,stage = 'train'):
 		outfile = os.path.join(self.path_file,f'{stage}_idx.npz')
-		with np.load(outfile) as tmp:
-			data = tmp['data']
+		with np.load(outfile,allow_pickle=True) as tmp:
+			data_s1 = tmp['data_s1']
+			data_s2 = tmp['data_s2']
 			label = tmp['label']
 		outfile = os.path.join(self.path_file, f'{stage}_idx2emb.pkl')
 		with open(outfile, 'rb') as handle:
 			idx2emb = pickle.load(handle)
-		sentence1, sentence2 = self.get_inp_emb(data,idx2emb)
+		sentence1= self.get_inp_emb(data_s1, idx2emb)
+		sentence2 = self.get_inp_emb(data_s2, idx2emb)
 		self.dataset[stage] = myDataset(sentence1, sentence2,label)
 
 

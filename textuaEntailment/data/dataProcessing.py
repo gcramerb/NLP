@@ -6,9 +6,9 @@ from tqdm import tqdm
 # from torchtext.legacy import data
 
 #
-# import spacy
-# from spacy.vocab import Vocab
-
+import spacy
+from spacy.vocab import Vocab
+import functools
 
 SOS_token = 0
 EOS_token = 1
@@ -18,15 +18,29 @@ class LangModel:
 	"""
 	This classes Read a new copus, do the preprocess and save the data as Index.
 	"""
-	def __init__(self,maxTokens = 7,stage = 'train'):
-		self.nlp = spacy.load("en_core_web_sm")
-		self.dumbTok = self.nlp("dskfodkfos")
-		self.idx = 0
+	def __init__(self,stage = 'train',max_s1 = None,max_s2 = None):
+		self.nlp = spacy.load("en_core_web_md")
+		self.dumbTok = self.nlp('sajhfauhsd')
+		self.idx = 1
 		self.str2idx = {}
 		self.idx2str = {}
 		self.idx2emb = {}
+		
+		self.idx2str[0] = self.dumbTok.text
+		self.idx2emb[0] = self.dumbTok.vector
+
 		self.data = {}
-		self.maxTokens = maxTokens
+		self.maxTokens = {}
+		self.dataPreProcess = {}
+		self.dataPreProcess['S1'] = []
+		self.dataPreProcess['S2'] = []
+		if max_s1 is None:
+			self.maxTokens['S1'] = []
+			self.maxTokens['S2'] = []
+		else:
+			self.maxTokens['S1'] = max_s1
+			self.maxTokens['S2'] = max_s2
+		
 		self.labels = {'contradiction':0, 'entailment':1, 'neutral':2}
 		self.stage = stage
 
@@ -38,14 +52,9 @@ class LangModel:
 		print('Start reading data',flush = True)
 		# load dataset
 		df = pd.read_csv(os.path.join(path,f'snli_1.0_{self.stage}.txt'), sep='\t')
-		# df_dev = pd.read_csv(os.path.join(path,'snli_1.0_dev.txt'), sep='\t')
-		# df_test = pd.read_csv(os.path.join(path,'snli_1.0_test.txt'), sep='\t')
-		
 		# Get neccesary columns
 		df = df[['gold_label', 'sentence1', 'sentence2']]
 		df.dropna( inplace=True)
-		# df_dev = df_dev[['gold_label', 'sentence1', 'sentence2']]
-		# df_test = df_test[['gold_label', 'sentence1', 'sentence2']]
 		df = df[df['gold_label'] != '-']
 		# Take small dataset
 		# if self.stage== 'train':
@@ -58,17 +67,10 @@ class LangModel:
 		s2 = [i for i in df['sentence2'].to_list() if type(i) == str]
 		lab = df['gold_label'].apply(self.label_encod).to_numpy()
 		assert len(s1) == len(s2)
-		
-		# lab_dev = df_dev['gold_label'].apply(self.label_encod).to_numpy()
-		# lab_test = df_test['gold_label'].apply(self.label_encod).to_numpy()
-		#
 		self.data= (s1,s2,lab)
-		# self.data['dev'] = (dev_s1,dev_s2,lab_dev)
-		# self.data['test'] = (test_s1,test_s2,lab_test)
 		
 		sec = (time.time() - start)/60
 		print("Data readed in ", sec, ' seg')
-
 
 	def dataProcess(self):
 		start = time.time()
@@ -77,43 +79,97 @@ class LangModel:
 		s1, s2, self.lab = self.data
 		assert len(s1) ==len(s2)
 		
-		for i in tqdm(range(len(s1))):
-			sentence_pair.append((self.sentence_cleaning(s1[i]),self.sentence_cleaning(s2[i])))
-		self.dataProcessed = np.array(sentence_pair)
+		if isinstance(self.maxTokens['S1'],int):
+			for i in tqdm(range(len(s1))):
+				self.sentence_cleaning(s1[i],'S1')
+				self.sentence_cleaning(s2[i],'S2')
+			
+		else:
+			for i in tqdm(range(len(s1))):
+				self.sentence_cleaning_train(s1[i], 'S1')
+				self.sentence_cleaning_train(s2[i], 'S2')
+			assert len(self.maxTokens['S1']) ==len(s1)
+			assert len(self.maxTokens['S2']) ==len(s1)
+			self.maxTokens['S1'] = int(np.percentile(self.maxTokens['S1'], 90))
+			self.maxTokens['S2'] = int(np.percentile(self.maxTokens['S2'], 90))
+			
+		print('Tamanhos: ', self.maxTokens['S1'],'  ',self.maxTokens['S2']  )
 
+		funcS1 = functools.partial(self.get_emb_matrix, max_=self.maxTokens['S1'])
+		funcS2 = functools.partial(self.get_emb_matrix, max_=self.maxTokens['S2'])
+		self.sentence_1 = np.array(list(map(funcS1,self.dataPreProcess['S1'])))
+		self.sentence_2 = np.array(list(map(funcS2,self.dataPreProcess['S2'])))
 		sec = (time.time() - start)/60
-		print("Data Processed in ", sec, ' seg')
+		print("Data Processed in ", sec, ' min')
+		return self.maxTokens['S1'] ,self.maxTokens['S2']
 
-	def sentence_cleaning(self, sentence):
+	def sentence_cleaning_train(self, sentence,s_ord):
 		sentence = sentence.lower()
 		tokens = self.nlp(sentence)
 		tokens = [tok for tok in tokens if (tok.is_stop == False)]
 		tokens = [tok for tok in tokens if (tok.is_punct == False)]
-		sentenceIdx = self.addSentence(tokens)
-		return np.array(sentenceIdx)
+		s = self.buildVocab(tokens)
+		self.maxTokens[s_ord].append(len(tokens))
+		self.dataPreProcess[s_ord].append(s)
+		return None
 	
-	def addSentence(self,tokens):
+	def sentence_cleaning(self, sentence,s_ord):
+		sentence = sentence.lower()
+		tokens = self.nlp(sentence)
+		tokens = [tok for tok in tokens if (tok.is_stop == False)]
+		tokens = [tok for tok in tokens if (tok.is_punct == False)]
+		s = self.buildVocab(tokens)
+		self.dataPreProcess[s_ord].append(s)
+		return None
+
+	def buildVocab(self,tokens):
 		final = []
-		for k in range(self.maxTokens - len(tokens)):
-			tokens.append(self.dumbTok)
-		for i in range(self.maxTokens):
-			word = tokens[i]
+		for word in tokens:
 			if word.text not in self.str2idx.keys():
 					self.str2idx[word.text] = self.idx
 					self.idx2str[self.idx] = word.text
 					self.idx2emb[self.idx] = word.vector
+					final.append(self.idx)
 					self.idx +=1
-			final.append(self.str2idx[word.text])
+			else:
+				final.append(self.str2idx[word.text])
 		return final
 
+	def get_emb_matrix(self,sentence,max_):
+		if max_ < len(sentence):
+			sentence = sentence[:max_]
+		else:
+			sentence = sentence + [0]*(max_ - len(sentence))
+		return sentence
+		#return list(map(lambda x: trans[x],sentence))
 
 	def save_processed(self,save_path):
 		print('saving files...', flush = True)
 		outfile = os.path.join(save_path,f'{self.stage}_idx')
-		np.savez(outfile, data = self.dataProcessed,label = self.lab)
+		np.savez(outfile, data_s1 = self.sentence_1,data_s2 = self.sentence_2,label = self.lab)
 		outfile = os.path.join(save_path, f'{self.stage}_idx2emb.pkl')
 		with open(outfile, 'wb') as handle:
 			pickle.dump(self.idx2emb, handle, protocol=pickle.HIGHEST_PROTOCOL)
 		print('all done')
 		#save the vocabulary Later(?)
+	
+	
+# def analyse_data(path,stage):
+# 	"""na verdade, eu deveria analisar o numero de tokens, e não das palavras em si"""
+# 	df = pd.read_csv(os.path.join(path, f'snli_1.0_{stage}.txt'), sep='\t')
+# 	df = df[['sentence1', 'sentence2']]
+# 	nlp2 = spacy.load("en_core_web_md")
+# 	def myFunc(stringg):
+# 		sentence = stringg.lower()
+# 		tokens = nlp2(sentence)
+# 		tokens = [tok for tok in tokens if (tok.is_stop == False)]
+# 		tokens = [tok for tok in tokens if (tok.is_punct == False)]
+# 		return len(tokens)
+# 	ls1 = df['sentence1'].apply(myFunc)
+# 	ls2 = df['sentence2'].apply(myFunc)
+# 	s1_len = int(np.percentile(ls1,90)) +1
+# 	s2_len = int(np.percentile(ls2,90)) +1
+# 	return s1_len,s2_len
 
+# path = "C:\\Users\\gcram\\Documents\\Datasets\\NLP\\snli_1.0\\"
+# print(analyse_data(path ,'train'))
