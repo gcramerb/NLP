@@ -22,13 +22,22 @@ class lstmModel(nn.Module):
 		self.seq_len2 = seq_len2
 		self.batch_size = batch_size
 
-		# self.vocab_size = vocab_size
-		# num_embeddings, embedding_dim = weights_matrix.shape[0], weights_matrix.shape[1]
-		# self.embedding = nn.Embedding(num_embeddings, embedding_dim)
-		# self.embedding.weight.data.copy_(torch.from_numpy(weights_matrix))
-		# self.embedding.weight.requires_grad = True
+
 		
-	def build(self):
+	def build(self,emb_matrix):
+
+
+		num_embeddings, embedding_dim = len(emb_matrix), len(emb_matrix[0])
+		weight = torch.FloatTensor(emb_matrix)
+		self.embedding = nn.Embedding.from_pretrained(weight,freeze = True, padding_idx=0)
+		
+		#
+		# self.embedding = nn.Embedding(num_embeddings, embedding_dim, padding_idx=0)
+		#
+		# self.embedding.weight.data.copy_(torch.from_numpy(emb_matrix))
+		# self.embedding.weight.requires_grad = False
+
+		
 		self.lstm_hypotheses  = nn.LSTM(input_size=self.embedding_dim,
 		                    hidden_size=self.hidden_size,
 		                    num_layers=self.stacked_layers,
@@ -64,6 +73,7 @@ class lstmModel(nn.Module):
 	
 	def forward(self, input):
 		hypotheses,evidences = input[0],input[1]
+		hypotheses, evidences = self.embedding(hypotheses),self.embedding(evidences)
 
 		# h0 = torch.zeros(self.stacked_layers * 2 ,
 		#                  self.batch_size,
