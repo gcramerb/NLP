@@ -8,8 +8,9 @@ class lstmModel(nn.Module):
 	             stacked_layers = 2,
 	             hidden_size = 64,
 	             embedding_dim = 300,
-	             seq_len1 = 17,
-	             seq_len2 = 8):
+	             batch_size = 512,
+	             seq_len1 = 11,
+	             seq_len2 = 6):
 		super(lstmModel, self).__init__()
 		
 		self.hidden_size = hidden_size
@@ -19,8 +20,8 @@ class lstmModel(nn.Module):
 		self.embedding_dim = embedding_dim
 		self.seq_len1 = seq_len1
 		self.seq_len2 = seq_len2
+		self.batch_size = batch_size
 
-		#
 		# self.vocab_size = vocab_size
 		# num_embeddings, embedding_dim = weights_matrix.shape[0], weights_matrix.shape[1]
 		# self.embedding = nn.Embedding(num_embeddings, embedding_dim)
@@ -28,30 +29,28 @@ class lstmModel(nn.Module):
 		# self.embedding.weight.requires_grad = True
 		
 	def build(self):
-
 		self.lstm_hypotheses  = nn.LSTM(input_size=self.embedding_dim,
 		                    hidden_size=self.hidden_size,
-		                    num_layers=1,
+		                    num_layers=self.stacked_layers,
 		                    batch_first=True,
 		                    dropout=0.2,
 		                    bidirectional=self.bidirectional)
-		
 		self.lstm_evidences  = nn.LSTM(input_size=self.embedding_dim,
 		                    hidden_size=self.hidden_size,
-		                    num_layers=1,
+		                    num_layers=self.stacked_layers,
 		                    batch_first=True,
 		                    dropout=0.2,
 		                    bidirectional=self.bidirectional)
 		
 		self.lstm_agg  = nn.LSTM(input_size= 2 * self.hidden_size,
 						hidden_size=self.hidden_size,
-						num_layers=1,
+						num_layers=self.stacked_layers,
 						batch_first=True,
 						dropout=0.2,
 						bidirectional=self.bidirectional)
 
 		self.FC = nn.Sequential(
-			nn.Flatten(),
+			nn.Flatten(), # 4352 ?
 			nn.Linear(2 * (self.seq_len1 +self.seq_len2)  * self.hidden_size, 256),
 			nn.ReLU(),
 			nn.Linear(256, 128),
@@ -65,25 +64,23 @@ class lstmModel(nn.Module):
 	
 	def forward(self, input):
 		hypotheses,evidences = input[0],input[1]
-		# batch_size = premise.size(0)
-		#
+
 		# h0 = torch.zeros(self.stacked_layers * 2 ,
-		#                  batch_size,
-		#                  self.hidden_size).to(device)  # 2 for bidirection
+		#                  self.batch_size,
+		#                  self.hidden_size).to('cuda') # 2 for bidirection
 		#
 		# c0 = torch.zeros(self.stacked_layers * 2 ,
-		#                  batch_size,
-		#                  self.hidden_size).to(device)
-		
+		#                  self.batch_size,
+		#                  self.hidden_size).to('cuda')
+		#
 		# hidden = self.init_hidden(batch_size)
 		
-		hypotheses, (hidden, _) = self.lstm_hypotheses(hypotheses)
-		evidences, (hidden, _) = self.lstm_evidences(evidences)
-		combined_outputs = torch.cat( (hypotheses, evidences),1)
-									 # torch.abs(premise - hypothesis),
-									 # premise * hypothesis),
-		                             # dim=2)
-		out, (hidden, _) = self.lstm_agg(combined_outputs)
+		#hypotheses, (hH, ch) = self.lstm_hypotheses(hypotheses, (h0, c0))
+		hypotheses, (hH, ch) = self.lstm_hypotheses(hypotheses)
+		evidences, (hE, cE) = self.lstm_evidences(evidences, (hH, ch))
+		comb_outputs = torch.cat( (hypotheses, evidences),1)
+		#comb_hidden = torch.cat((hiddenH,hiddenE),-1)
+		out, (hidden, _) = self.lstm_agg(comb_outputs,(hE, cE))
 		probs = self.FC(out)
 		return probs
 	

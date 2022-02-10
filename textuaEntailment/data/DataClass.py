@@ -45,8 +45,14 @@ class MyDataModule(LightningDataModule):
 
 
 	def train_dataloader(self):
-		return DataLoader(self.dataset['train'], batch_size=self.batch_size)
+		return DataLoader(self.dataset['train'],
+		                  drop_last=True,
+		                  batch_size=self.batch_size)
 	def val_dataloader(self):
-		return DataLoader(self.dataset['dev'], batch_size=self.batch_size)
+		return DataLoader(self.dataset['dev'],
+		                  drop_last= True,
+		                  batch_size=self.batch_size)
 	def test_dataloader(self):
-		return DataLoader(self.dataset['test'], batch_size=self.batch_size)
+		return DataLoader(self.dataset['test'],
+		                  drop_last= True,
+		                  batch_size=self.batch_size)

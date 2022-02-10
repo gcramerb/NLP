@@ -36,13 +36,15 @@ class NLItrainer(LightningModule):
 	def __init__(
 			self,
 			lr: float = 0.002,
+			seq_len1: int = 11,
+			seq_len2: int = 6,
 			**kwargs
 	):
 		super().__init__()
 		self.save_hyperparameters()
 		
 		# networks
-		self.model = lstmModel()
+		self.model = lstmModel(seq_len1 = seq_len1,seq_len2 = seq_len2)
 		self.model.build()
 		self.loss = torch.nn.CrossEntropyLoss()
 	
@@ -65,21 +67,20 @@ class NLItrainer(LightningModule):
 		return metrics
 	
 	def training_step(self, batch, batch_idx):
+		
 		sent1, sent2, label = batch[0], batch[1], batch[2].long()
 		pred = self.model((sent1,sent2))
 		loss = self.loss(pred,label)
 		tqdm_dict = {f"train_loss": loss}
 		output = OrderedDict({"loss": loss, "progress_bar": tqdm_dict})
+		
 		return output
 	
 	# def training_epoch_end(self, output):
 	# 	metrics = {}
-	# 	opt0 = [i['log'] for i in output[0]]
-	# 	opt1 = [i['log'] for i in output[1]]
-	#
-	# 	keys_ = opt0[0].keys()
+	# 	keys_ = output[0].keys()
 	# 	for k in keys_:
-	# 		metrics[k] = torch.mean(torch.stack([i[k] for i in opt0] + [i[k] for i in opt1]))
+	# 		metrics[k] = torch.mean(torch.stack([i[k] for i in output])
 	# 	for k, v in metrics.items():
 	# 		self.log(k, v, on_step=False, on_epoch=True, prog_bar=True, logger=True)
 	

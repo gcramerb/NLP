@@ -42,20 +42,20 @@ def process():
 
 
 if __name__ == '__main__':
-	seq_len1,seq_len2 = process()
-	print('TAMANHOS finais: ',seq_len1,'  ',seq_len2,'\n\n')
-	# model = NLItrainer()
-	# dm = MyDataModule(batch_size = 512,path = proces_file)
-	# dm._setup('train')
-	# dm._setup('dev')
-	# dm._setup('test')
-	#
-	# trainer = Trainer(gpus=1,
-	#                   check_val_every_n_epoch=1,
-	#                   max_epochs=20,
-	#                   logger=None,
-	#                   progress_bar_refresh_rate=1,
-	#                   callbacks=[])
-	# trainer.fit(model,datamodule = dm)
-	# trainer.test(dataloaders=dm.test_dataloader())
+	#seq_len1,seq_len2 = process()
+	#print('TAMANHOS finais: ',seq_len1,'  ',seq_len2,'\n\n')
+	model = NLItrainer(seq_len1 = 11,seq_len2= 6)
+	dm = MyDataModule(batch_size = 512,path = proces_file)
+	dm._setup('train')
+	dm._setup('dev')
+	dm._setup('test')
+
+	trainer = Trainer(gpus=1,
+	                  check_val_every_n_epoch=1,
+	                  max_epochs=20,
+	                  logger=None,
+	                  progress_bar_refresh_rate=1,
+	                  callbacks=[])
+	trainer.fit(model,datamodule = dm)
+	trainer.test(dataloaders=dm.test_dataloader())
 
