@@ -30,14 +30,7 @@ class lstmModel(nn.Module):
 		num_embeddings, embedding_dim = len(emb_matrix), len(emb_matrix[0])
 		weight = torch.FloatTensor(emb_matrix)
 		self.embedding = nn.Embedding.from_pretrained(weight,freeze = True, padding_idx=0)
-		
-		#
-		# self.embedding = nn.Embedding(num_embeddings, embedding_dim, padding_idx=0)
-		#
-		# self.embedding.weight.data.copy_(torch.from_numpy(emb_matrix))
-		# self.embedding.weight.requires_grad = False
 
-		
 		self.lstm_hypotheses  = nn.LSTM(input_size=self.embedding_dim,
 		                    hidden_size=self.hidden_size,
 		                    num_layers=self.stacked_layers,
@@ -74,28 +67,10 @@ class lstmModel(nn.Module):
 	def forward(self, input):
 		hypotheses,evidences = input[0],input[1]
 		hypotheses, evidences = self.embedding(hypotheses),self.embedding(evidences)
-
-		# h0 = torch.zeros(self.stacked_layers * 2 ,
-		#                  self.batch_size,
-		#                  self.hidden_size).to('cuda') # 2 for bidirection
-		#
-		# c0 = torch.zeros(self.stacked_layers * 2 ,
-		#                  self.batch_size,
-		#                  self.hidden_size).to('cuda')
-		#
-		# hidden = self.init_hidden(batch_size)
-		
-		#hypotheses, (hH, ch) = self.lstm_hypotheses(hypotheses, (h0, c0))
 		hypotheses, (hH, ch) = self.lstm_hypotheses(hypotheses)
 		evidences, (hE, cE) = self.lstm_evidences(evidences, (hH, ch))
 		comb_outputs = torch.cat( (hypotheses, evidences),1)
-		#comb_hidden = torch.cat((hiddenH,hiddenE),-1)
 		out, (hidden, _) = self.lstm_agg(comb_outputs,(hE, cE))
 		probs = self.FC(out)
 		return probs
 	
-# from torchsummary import summary
-# m = lstmModel()
-# m.build()
-# m = m.to('cuda')
-# summary(m, ((1000,7,96),(1000,7,96)), device='cuda')

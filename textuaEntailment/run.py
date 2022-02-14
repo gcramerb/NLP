@@ -5,7 +5,7 @@ from data.DataClass import MyDataModule
 from torch.utils.data import Dataset,DataLoader
 from trainer import NLItrainer
 from pytorch_lightning import Trainer
-from trainer import NLItrainer
+from pytorch_lightning.callbacks import EarlyStopping
 
 import sys, argparse,os,glob
 
@@ -30,20 +30,20 @@ def process():
 
 
 if __name__ == '__main__':
-	process()
+	#process()
 	
 	#print('TAMANHOS finais: ',seq_len1,'  ',seq_len2,'\n\n')
 	model = NLItrainer(seq_len1 = 11,seq_len2= 6,path_emb = proces_file)
-	dm = MyDataModule(batch_size = 64,path = proces_file)
+	dm = MyDataModule(batch_size = 512,path = proces_file)
 	dm._setup()
-
-
+	
+	early_stopping = EarlyStopping('val_loss', mode='min', patience=7, verbose=True)
 	trainer = Trainer(gpus=1,
 	                  check_val_every_n_epoch=1,
 	                  max_epochs=20,
 	                  logger=None,
 	                  progress_bar_refresh_rate=1,
-	                  callbacks=[])
+	                  callbacks=[early_stopping])
 	trainer.fit(model,datamodule = dm)
 	trainer.test(dataloaders=dm.test_dataloader())
 	PATH_MODEL = "C:\\Users\\gcram\\Documents\\Github\\NLP\\saved\\texEnt_model.ckpt"

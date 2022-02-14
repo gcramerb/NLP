@@ -24,11 +24,6 @@ class MyDataModule(LightningDataModule):
 		self.dataset['train'] = None
 		self.dataset['dev'] = None
 		self.dataset['test'] = None
-	
-	# def get_inp_emb(self,sentIdx,translate):
-	# 	dat = [list(map(lambda x: translate[x], sentIdx[:, i])) for i in range(sentIdx.shape[-1])]
-	# 	return np.stack(dat, axis=1)
-
 
 	def _setup(self):
 		for stage in ['train','dev','test']:
@@ -37,15 +32,7 @@ class MyDataModule(LightningDataModule):
 				sentence1 = tmp['data_s1']
 				sentence2 = tmp['data_s2']
 				label = tmp['label']
-				
-			# outfile = os.path.join(self.path_file, f'{stage}_idx2emb.pkl')
-			# with open(outfile, 'rb') as handle:
-			# 	idx2emb = pickle.load(handle)
-			# sentence1= self.get_inp_emb(data_s1, idx2emb)
-			# sentence2 = self.get_inp_emb(data_s2, idx2emb)
-			
 			self.dataset[stage] = myDataset(sentence1, sentence2,label)
-
 
 	def train_dataloader(self):
 		return DataLoader(self.dataset['train'],

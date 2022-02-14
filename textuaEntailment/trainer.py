@@ -51,7 +51,6 @@ class NLItrainer(LightningModule):
 				emb_matrix = tmp['Vocab']
 
 
-
 		# networks
 		self.model = lstmModel(seq_len1 = seq_len1,seq_len2 = seq_len2)
 		self.model.build(emb_matrix)
@@ -85,15 +84,24 @@ class NLItrainer(LightningModule):
 		
 		return output
 	
-	# def training_epoch_end(self, output):
-	# 	metrics = {}
-	# 	keys_ = output[0].keys()
-	# 	for k in keys_:
-	# 		metrics[k] = torch.mean(torch.stack([i[k] for i in output])
-	# 	for k, v in metrics.items():
-	# 		self.log(k, v, on_step=False, on_epoch=True, prog_bar=True, logger=True)
-	
+	def predict(self,dl,stage ='test'):
+		outcomes = {}
+		with torch.no_grad():
 
+			true_list = []
+			pred_list = []
+
+			for batch in dl:
+				sent1, sent2, label = batch[0], batch[1], batch[2].long()
+				pred = self.model((sent1, sent2))
+				true_ = label.cpu().numpy()
+				pred_ = np.argmax(pred.cpu().numpy(), axis=1)
+				true_list.append(true_)
+				pred_list.append(pred_)
+
+			outcomes[f'true_{stage}'] = np.concatenate(true_list, axis=0)
+			outcomes[f'pred_{stage}'] = np.concatenate(pred_list, axis=0)
+			return outcomes
 	
 	def validation_step(self, batch, batch_idx):
 		# with torch.no_grad():
@@ -121,102 +129,3 @@ class NLItrainer(LightningModule):
 	def configure_optimizers(self):
 		opt = torch.optim.Adam(self.model.parameters(), lr=self.hparams.lr)
 		return [opt]
-
-
-
-
-
-
-
-
-
-#
-# class LitMNIST(LightningModule):
-#     def training_step(self, batch, batch_idx):
-#         x, y = batch
-#         logits = self(x)
-#         loss = F.nll_loss(logits, y)
-#         return loss
-#
-#
-# def train(model, train_loader, val_loader, criterion, optimizer):
-# 	total_step = len(train_loader)
-#
-# 	for epoch in range(EPOCHS):
-# 		start = time.time()
-# 		model.train()
-# 		total_train_loss = 0
-# 		total_train_acc = 0
-# 		for val in train_loader:
-# 			sentence_pairs, labels = map(list, zip(*val))
-#
-# 			premise_seq = [torch.tensor(seq[0]).long().to(device) for seq in sentence_pairs]
-# 			hypothesis_seq = [torch.tensor(seq[1]).long().to(device) for seq in sentence_pairs]
-# 			batch = len(premise_seq)
-#
-# 			premise_len = list(map(len, premise_seq))
-# 			hypothesis_len = list(map(len, hypothesis_seq))
-#
-# 			temp = pad_sequence(premise_seq + hypothesis_seq, batch_first=True)
-# 			premise_seq = temp[:batch, :]
-# 			hypothesis_seq = temp[batch:, :]
-# 			labels = torch.tensor(labels).long().to(device)
-#
-# 			model.zero_grad()
-# 			prediction = model([premise_seq, hypothesis_seq], premise_len, hypothesis_len)
-#
-# 			loss = criterion(prediction, labels)
-# 			acc = multi_acc(prediction, labels)
-#
-# 			loss.backward()
-# 			optimizer.step()
-#
-# 			total_train_loss += loss.item()
-# 			total_train_acc += acc.item()
-#
-# 		train_acc = total_train_acc / len(train_loader)
-# 		train_loss = total_train_loss / len(train_loader)
-# 		model.eval()
-# 		total_val_acc = 0
-# 		total_val_loss = 0
-# 		with torch.no_grad():
-# 			for val in val_loader:
-# 				sentence_pairs, labels = map(list, zip(*val))
-#
-# 				premise_seq = [torch.tensor(seq[0]).long().to(device) for seq in sentence_pairs]
-# 				hypothesis_seq = [torch.tensor(seq[1]).long().to(device) for seq in sentence_pairs]
-# 				batch = len(premise_seq)
-#
-# 				premise_len = list(map(len, premise_seq))
-# 				hypothesis_len = list(map(len, hypothesis_seq))
-#
-# 				temp = pad_sequence(premise_seq + hypothesis_seq, batch_first=True)
-# 				premise_seq = temp[:batch, :]
-# 				hypothesis_seq = temp[batch:, :]
-#
-# 				premise_seq = premise_seq.to(device)
-# 				hypothesis_seq = hypothesis_seq.to(device)
-# 				labels = torch.tensor(labels).long().to(device)
-#
-# 				model.zero_grad()
-# 				prediction = model([premise_seq, hypothesis_seq], premise_len, hypothesis_len)
-#
-# 				loss = criterion(prediction, labels)
-# 				acc = multi_acc(prediction, labels)
-#
-# 				total_val_loss += loss.item()
-# 				total_val_acc += acc.item()
-#
-# 		val_acc = total_val_acc / len(val_loader)
-# 		val_loss = total_val_loss / len(val_loader)
-#
-# 		end = time.time()
-# 		hours, rem = divmod(end - start, 3600)
-# 		minutes, seconds = divmod(rem, 60)
-# 		print("{:0>2}:{:0>2}:{:05.2f}".format(int(hours), int(minutes), seconds))
-# 		print(
-# 			f'Epoch {epoch + 1}: train_loss: {train_loss:.4f} train_acc: {train_acc:.4f} | val_loss: {val_loss:.4f} val_acc: {val_acc:.4f}')
-# 		torch.cuda.empty_cache()
-#
-# 		criterion = nn.CrossEntropyLoss()
-# 		optimizer = optim.Adam(lstm_model.parameters(), lr=LEARNING_RATE, weight_decay=1e-5)
